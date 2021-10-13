@@ -3,11 +3,11 @@
   "host": "localhost",
   "port": 5432,
   "username": "postgres",
-  "password": "liana120724",
+  "password": "123456",
   "database": "rentx",
-  "entities": ["./src/modules/cars/entities/*.ts"],
-  "migrations": ["./src/database/migrations/*.ts"],
+  "entities": ["./src/modules/**/entities/*.ts"],
+  "migrations": ["./src/shared/infra/typeorm/migrations/*.ts"],
   "cli": {
-    "migrationsDir": "./src/database/migrations"
+    "migrationsDir": "./src/shared/infra/typeorm/migrations"
   }
 }
