@@ -3,6 +3,9 @@ import { compare } from "bcrypt";
 import { sign } from "jsonwebtoken";
 import { IUsersRepository } from "../../repositories/IUsersRepository";
 import { AppError } from "@shared/errors/AppError";
+import { IUserTokenRepository } from "@modules/accounts/repositories/IUserTokenRepository";
+import auth from "@config/auth";
+import { IDateProvider } from "@shared/container/providers/DateProvider/IDateProvider";
 
 interface IRequest {
   email: string;
@@ -16,13 +19,20 @@ interface IResponse {
     isAdmin: boolean;
   };
   token: string;
+  refresh_token: string;
 }
 
 @injectable()
 class AuthenticateUserUseCase {
   constructor(
     @inject("UsersRepository")
-    private usersRepository: IUsersRepository
+    private usersRepository: IUsersRepository,
+
+    @inject("UserTokenRepository")
+    private userTokenRepository: IUserTokenRepository,
+
+    @inject("DayjsDateProvider")
+    private dateProvider: IDateProvider
   ) {}
 
   async execute({ email, password }: IRequest): Promise<IResponse> {
@@ -38,9 +48,32 @@ class AuthenticateUserUseCase {
       throw new AppError("E-mail ou Senha incorretos.", 401);
     }
 
-    const token = sign({}, "batatinhafrita123", {
+    const {
+      expires_in_token,
+      secret_refresh_token,
+      secret_token,
+      expires_in_refresh_token,
+      expires_refresh_token_days,
+    } = auth;
+
+    const token = sign({}, secret_token, {
       subject: user.id,
-      expiresIn: "1d",
+      expiresIn: expires_in_token,
+    });
+
+    const refresh_token = sign({ email }, secret_refresh_token, {
+      subject: user.id,
+      expiresIn: expires_in_refresh_token,
+    });
+
+    const refresh_token_expires_date = this.dateProvider.addDays(
+      expires_refresh_token_days
+    );
+
+    await this.userTokenRepository.create({
+      user_id: user.id,
+      refresh_token,
+      expire_date: refresh_token_expires_date,
     });
 
     const tokenReturn: IResponse = {
@@ -50,6 +83,7 @@ class AuthenticateUserUseCase {
         email: user.email,
         isAdmin: user.isAdmin,
       },
+      refresh_token,
     };
 
     return tokenReturn;
